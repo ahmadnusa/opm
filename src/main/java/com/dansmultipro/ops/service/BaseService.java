@@ -4,10 +4,8 @@ import com.dansmultipro.ops.constant.ResponseConstant;
 import com.dansmultipro.ops.model.BaseEntity;
 import com.dansmultipro.ops.util.AuthUtil;
 import com.dansmultipro.ops.util.UUIDUtil;
-
 import java.time.LocalDateTime;
 import java.util.UUID;
-
 import org.springframework.beans.factory.annotation.Autowired;
 
 public abstract class BaseService {
@@ -19,12 +17,16 @@ public abstract class BaseService {
         this.authUtil = authUtil;
     }
 
-    protected <E extends BaseEntity> E prepareCreate(E entity) {
+    protected <E extends BaseEntity> E prepareInsert(E entity) {
+        return prepareInsert(entity, Boolean.TRUE);
+    }
+
+    protected <E extends BaseEntity> E prepareInsert(E entity, Boolean isActive) {
         LocalDateTime now = LocalDateTime.now();
-        UUID actorId = AuthUtil.getLoginId();
+        UUID actorId = authUtil.idSystem();
 
         entity.setId(UUID.randomUUID());
-        entity.setIsActive(Boolean.TRUE);
+        entity.setIsActive(isActive);
         entity.setCreatedAt(now);
         entity.setCreatedBy(actorId);
 
@@ -33,7 +35,7 @@ public abstract class BaseService {
 
     protected <E extends BaseEntity> E prepareUpdate(E entity) {
         entity.setUpdatedAt(LocalDateTime.now());
-        entity.setUpdatedBy(AuthUtil.getLoginId());
+        entity.setUpdatedBy(authUtil.idSystem());
 
         return entity;
     }

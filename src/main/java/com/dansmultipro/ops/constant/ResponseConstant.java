@@ -7,7 +7,8 @@ public enum ResponseConstant {
     ENABLED("Enabled"),
     NOT_FOUND("Not Found"),
     ALREADY_EXISTS("Already Exists"),
-    STALE_VERSION("Stale Version");
+    STALE_VERSION("Stale Version"),
+    INVALID_CREDENTIAL("Email or password is incorrect.");
 
     private final String value;
 

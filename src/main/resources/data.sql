@@ -29,3 +29,25 @@ VALUES
     (gen_random_uuid(), 'QRIS',          'QRIS',            TRUE, 0, CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000001'),
     (gen_random_uuid(), 'VA',            'Virtual Account', TRUE, 0, CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000001'),
     (gen_random_uuid(), 'BANK_TRANSFER', 'Bank Transfer',   TRUE, 0, CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000001');
+
+-- users
+INSERT INTO users (id, full_name, email, password, role_id, is_active, opt_lock, created_at, created_by)
+VALUES
+  (
+    gen_random_uuid(),
+    'System User',
+    'system@ops.local',
+    '$2a$10$Dow1R4V6kRrgPf63eVUsjeFRCGDpa2BkLomqKgkl0vvArk.W5vCvy',
+    (SELECT id FROM roles WHERE code = 'SYSTEM'),
+    TRUE, 0, CURRENT_TIMESTAMP,
+    '00000000-0000-0000-0000-000000000001'
+  ),
+  (
+    gen_random_uuid(),
+    'Super Admin',
+    'sa@ops.local',
+    '$2a$10$Dow1R4V6kRrgPf63eVUsjeFRCGDpa2BkLomqKgkl0vvArk.W5vCvy',
+    (SELECT id FROM roles WHERE code = 'SA'),
+    TRUE, 0, CURRENT_TIMESTAMP,
+    '00000000-0000-0000-0000-000000000001'
+  );
