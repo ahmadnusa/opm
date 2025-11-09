@@ -1,5 +1,6 @@
 package com.dansmultipro.ops.service;
 
+import com.dansmultipro.ops.dto.auth.LoginRequestDto;
 import com.dansmultipro.ops.dto.auth.LoginResponseDto;
 import com.dansmultipro.ops.dto.auth.RegisterRequestDto;
 import com.dansmultipro.ops.dto.common.ApiPostResponseDto;
@@ -13,13 +14,13 @@ public interface UserService extends UserDetailsService {
 
     ApiPostResponseDto register(RegisterRequestDto request);
 
-    LoginResponseDto login(String email);
+    LoginResponseDto login(LoginRequestDto request);
 
     ApiPutResponseDto updatePassword(PasswordUpdateRequestDto request);
 
     ApiPutResponseDto approveCustomer(String id);
 
-    List<UserResponseDto> getAll();
+    List<UserResponseDto> getAll(Boolean isActive);
 
     UserResponseDto getById(String id);
 }

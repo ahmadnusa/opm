@@ -1,17 +1,8 @@
 package com.dansmultipro.ops.service.impl;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
-
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-
 import com.dansmultipro.ops.constant.ResponseConstant;
 import com.dansmultipro.ops.constant.RoleType;
+import com.dansmultipro.ops.dto.auth.LoginRequestDto;
 import com.dansmultipro.ops.dto.auth.LoginResponseDto;
 import com.dansmultipro.ops.dto.auth.RegisterRequestDto;
 import com.dansmultipro.ops.dto.common.ApiPostResponseDto;
@@ -22,33 +13,50 @@ import com.dansmultipro.ops.exception.BusinessRuleException;
 import com.dansmultipro.ops.exception.ResourceNotFoundException;
 import com.dansmultipro.ops.model.master.Role;
 import com.dansmultipro.ops.model.user.User;
-import com.dansmultipro.ops.repository.RoleRepository;
+import com.dansmultipro.ops.repository.RoleRepo;
 import com.dansmultipro.ops.repository.UserRepo;
-import com.dansmultipro.ops.service.BaseService;
+import com.dansmultipro.ops.spec.UserSpecification;
 import com.dansmultipro.ops.service.UserService;
 import com.dansmultipro.ops.util.JwtUtil;
-import com.dansmultipro.ops.util.JwtUtil.TokenPair;
+import com.dansmultipro.ops.dto.auth.TokenPair;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
 
 @Service
 public class UserServiceImpl extends BaseService implements UserService {
 
-    private static final String RESOURCE_NAME = "User:";
+    private static final String RESOURCE_NAME = "User";
 
     private final UserRepo userRepo;
-    private final RoleRepository roleRepo;
+    private final RoleRepo roleRepo;
     private final PasswordEncoder passwordEncoder;
 
     private final JwtUtil jwtUtil;
+    private final AuthenticationManager authenticationManager;
 
     public UserServiceImpl(
             UserRepo userRepo,
-            RoleRepository roleRepo,
+            RoleRepo roleRepo,
             PasswordEncoder passwordEncoder,
-            JwtUtil jwtUtil) {
+            JwtUtil jwtUtil,
+            @Lazy AuthenticationManager authenticationManager) {
         this.userRepo = userRepo;
         this.roleRepo = roleRepo;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.authenticationManager = authenticationManager;
     }
 
     @Override
@@ -75,8 +83,19 @@ public class UserServiceImpl extends BaseService implements UserService {
     }
 
     @Override
-    public LoginResponseDto login(String email) {
-        User user = userRepo.findByEmailIgnoreCase(email)
+    public LoginResponseDto login(LoginRequestDto request) {
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                request.email(), request.password());
+
+        try {
+            authenticationManager.authenticate(auth);
+        } catch (DisabledException ex) {
+            throw new BusinessRuleException(messageBuilder(RESOURCE_NAME, ResponseConstant.ACCOUNT_INACTIVE));
+        } catch (BadCredentialsException ex) {
+            throw new BusinessRuleException(messageBuilder("Credential:", ResponseConstant.INVALID_CREDENTIAL));
+        }
+
+        User user = userRepo.findByEmailIgnoreCase(request.email())
                 .orElseThrow(() -> new BusinessRuleException(
                         messageBuilder(RESOURCE_NAME, ResponseConstant.NOT_FOUND)));
 
@@ -90,9 +109,9 @@ public class UserServiceImpl extends BaseService implements UserService {
     public ApiPutResponseDto updatePassword(PasswordUpdateRequestDto request) {
         UUID loginId;
         try {
-            loginId = authUtil.idLogin();
+            loginId = authUtil.getLoginId();
         } catch (IllegalStateException ex) {
-            throw new BusinessRuleException("Authentication is required.");
+            throw new BusinessRuleException(messageBuilder("Authentication", ResponseConstant.AUTH_REQUIRED));
         }
 
         User user = fetchUser(loginId);
@@ -102,7 +121,7 @@ public class UserServiceImpl extends BaseService implements UserService {
         }
 
         if (!passwordEncoder.matches(request.oldPassword(), user.getPassword())) {
-            throw new BusinessRuleException("Old password is incorrect.");
+            throw new BusinessRuleException(messageBuilder("Password:", ResponseConstant.OLD_PASSWORD_INVALID));
         }
 
         user.setPassword(passwordEncoder.encode(request.newPassword()));
@@ -126,9 +145,11 @@ public class UserServiceImpl extends BaseService implements UserService {
     }
 
     @Override
-    public List<UserResponseDto> getAll() {
+    public List<UserResponseDto> getAll(Boolean isActive) {
         ensureSuperAdmin();
-        return userRepo.findAll()
+        Specification<User> spec = UserSpecification.hasActiveStatus(isActive);
+        List<User> users = userRepo.findAll(spec);
+        return users
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -144,7 +165,8 @@ public class UserServiceImpl extends BaseService implements UserService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepo.findByEmailIgnoreCase(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found."));
+                .orElseThrow(() -> new UsernameNotFoundException(
+                        messageBuilder(RESOURCE_NAME, ResponseConstant.NOT_FOUND)));
 
         SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + user.getRole().getCode());
         return new org.springframework.security.core.userdetails.User(
@@ -159,7 +181,7 @@ public class UserServiceImpl extends BaseService implements UserService {
 
     private void ensureSuperAdmin() {
         if (!authUtil.hasRole(RoleType.SA)) {
-            throw new BusinessRuleException("Super Admin privileges are required.");
+            throw new BusinessRuleException(messageBuilder("Access", ResponseConstant.SUPER_ADMIN_REQUIRED));
         }
     }
 
@@ -168,7 +190,7 @@ public class UserServiceImpl extends BaseService implements UserService {
                 ? userRepo.existsByEmailIgnoreCase(email)
                 : userRepo.existsByEmailIgnoreCaseAndIdNot(email, excludeId);
         if (exists) {
-            throw new BusinessRuleException("Email is already registered.");
+            throw new BusinessRuleException(messageBuilder("Email", ResponseConstant.ALREADY_EXISTS));
         }
     }
 
@@ -181,7 +203,7 @@ public class UserServiceImpl extends BaseService implements UserService {
     private Role fetchRoleByCode(String code) {
         return roleRepo.findByCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        messageBuilder("Role:", ResponseConstant.NOT_FOUND)));
+                        messageBuilder("Role", ResponseConstant.NOT_FOUND)));
     }
 
     private UserResponseDto toResponse(User entity) {

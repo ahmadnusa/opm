@@ -1,7 +1,9 @@
 package com.dansmultipro.ops.controller;
 
 import com.dansmultipro.ops.dto.master.StatusTypeResponseDto;
-import com.dansmultipro.ops.service.master.StatusTypeService;
+import com.dansmultipro.ops.service.StatusTypeService;
+
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,7 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/status-types")
+@RequestMapping("/status-types")
+@SecurityRequirement(name = "bearerAuth")
 public class StatusTypeController {
 
     private final StatusTypeService service;

@@ -9,10 +9,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dansmultipro.ops.dto.master.RoleResponseDto;
-import com.dansmultipro.ops.service.master.RoleService;
+import com.dansmultipro.ops.service.RoleService;
+
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 @RestController
-@RequestMapping("/api/roles")
+@RequestMapping("/roles")
+@SecurityRequirement(name = "bearerAuth")
 public class RoleController {
 
     private final RoleService service;

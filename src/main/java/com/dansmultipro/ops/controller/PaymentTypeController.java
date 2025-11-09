@@ -1,18 +1,19 @@
 package com.dansmultipro.ops.controller;
 
-import java.util.List;
+import com.dansmultipro.ops.dto.master.PaymentTypeResponseDto;
+import com.dansmultipro.ops.service.PaymentTypeService;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.dansmultipro.ops.dto.master.PaymentTypeResponseDto;
-import com.dansmultipro.ops.service.master.PaymentTypeService;
-
 @RestController
-@RequestMapping("/api/payment-types")
+@RequestMapping("/payment-types")
+@SecurityRequirement(name = "bearerAuth")
 public class PaymentTypeController {
 
     private final PaymentTypeService service;

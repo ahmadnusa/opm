@@ -4,6 +4,7 @@ import com.dansmultipro.ops.dto.common.ApiPutResponseDto;
 import com.dansmultipro.ops.dto.user.PasswordUpdateRequestDto;
 import com.dansmultipro.ops.dto.user.UserResponseDto;
 import com.dansmultipro.ops.service.UserService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -12,10 +13,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/users")
+@SecurityRequirement(name = "bearerAuth")
 public class UserController {
 
     private final UserService userService;
@@ -25,8 +28,8 @@ public class UserController {
     }
 
     @GetMapping
-    public List<UserResponseDto> getAll() {
-        return userService.getAll();
+    public List<UserResponseDto> getAll(@RequestParam(value = "isActive", required = false) Boolean isActive) {
+        return userService.getAll(isActive);
     }
 
     @GetMapping("/{id}")

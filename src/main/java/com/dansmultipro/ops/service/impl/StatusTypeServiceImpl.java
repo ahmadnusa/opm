@@ -1,12 +1,12 @@
-package com.dansmultipro.ops.service.master.impl;
+package com.dansmultipro.ops.service.impl;
 
 import com.dansmultipro.ops.constant.ResponseConstant;
 import com.dansmultipro.ops.dto.master.StatusTypeResponseDto;
 import com.dansmultipro.ops.exception.ResourceNotFoundException;
 import com.dansmultipro.ops.model.master.StatusType;
-import com.dansmultipro.ops.repository.StatusTypeRepository;
-import com.dansmultipro.ops.service.BaseService;
-import com.dansmultipro.ops.service.master.StatusTypeService;
+import com.dansmultipro.ops.repository.StatusTypeRepo;
+import com.dansmultipro.ops.service.StatusTypeService;
+
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,9 +16,9 @@ import java.util.UUID;
 @Service
 public class StatusTypeServiceImpl extends BaseService implements StatusTypeService {
 
-    private final StatusTypeRepository repository;
+    private final StatusTypeRepo repository;
 
-    public StatusTypeServiceImpl(StatusTypeRepository repository) {
+    public StatusTypeServiceImpl(StatusTypeRepo repository) {
         this.repository = repository;
     }
 

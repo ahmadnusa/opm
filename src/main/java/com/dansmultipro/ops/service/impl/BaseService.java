@@ -1,4 +1,4 @@
-package com.dansmultipro.ops.service;
+package com.dansmultipro.ops.service.impl;
 
 import com.dansmultipro.ops.constant.ResponseConstant;
 import com.dansmultipro.ops.model.BaseEntity;
@@ -23,7 +23,7 @@ public abstract class BaseService {
 
     protected <E extends BaseEntity> E prepareInsert(E entity, Boolean isActive) {
         LocalDateTime now = LocalDateTime.now();
-        UUID actorId = authUtil.idSystem();
+        UUID actorId = authUtil.isAuthenticated() ? authUtil.getLoginId() : authUtil.getSystemId();
 
         entity.setId(UUID.randomUUID());
         entity.setIsActive(isActive);
@@ -34,8 +34,10 @@ public abstract class BaseService {
     }
 
     protected <E extends BaseEntity> E prepareUpdate(E entity) {
+        UUID actorId = authUtil.isAuthenticated() ? authUtil.getLoginId() : authUtil.getSystemId();
+        
         entity.setUpdatedAt(LocalDateTime.now());
-        entity.setUpdatedBy(authUtil.idSystem());
+        entity.setUpdatedBy(actorId);
 
         return entity;
     }

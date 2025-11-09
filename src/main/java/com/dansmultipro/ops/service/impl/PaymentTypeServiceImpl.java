@@ -1,12 +1,12 @@
-package com.dansmultipro.ops.service.master.impl;
+package com.dansmultipro.ops.service.impl;
 
 import com.dansmultipro.ops.constant.ResponseConstant;
 import com.dansmultipro.ops.dto.master.PaymentTypeResponseDto;
 import com.dansmultipro.ops.exception.ResourceNotFoundException;
 import com.dansmultipro.ops.model.master.PaymentType;
-import com.dansmultipro.ops.repository.PaymentTypeRepository;
-import com.dansmultipro.ops.service.BaseService;
-import com.dansmultipro.ops.service.master.PaymentTypeService;
+import com.dansmultipro.ops.repository.PaymentTypeRepo;
+import com.dansmultipro.ops.service.PaymentTypeService;
+
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,9 +16,9 @@ import java.util.Objects;
 @Service
 public class PaymentTypeServiceImpl extends BaseService implements PaymentTypeService {
 
-    private final PaymentTypeRepository repository;
+    private final PaymentTypeRepo repository;
 
-    public PaymentTypeServiceImpl(PaymentTypeRepository repository) {
+    public PaymentTypeServiceImpl(PaymentTypeRepo repository) {
         this.repository = repository;
     }
 

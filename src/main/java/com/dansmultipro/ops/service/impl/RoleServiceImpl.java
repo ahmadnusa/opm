@@ -1,4 +1,4 @@
-package com.dansmultipro.ops.service.master.impl;
+package com.dansmultipro.ops.service.impl;
 
 import java.util.List;
 import java.util.Objects;
@@ -10,16 +10,15 @@ import com.dansmultipro.ops.constant.ResponseConstant;
 import com.dansmultipro.ops.dto.master.RoleResponseDto;
 import com.dansmultipro.ops.exception.ResourceNotFoundException;
 import com.dansmultipro.ops.model.master.Role;
-import com.dansmultipro.ops.repository.RoleRepository;
-import com.dansmultipro.ops.service.BaseService;
-import com.dansmultipro.ops.service.master.RoleService;
+import com.dansmultipro.ops.repository.RoleRepo;
+import com.dansmultipro.ops.service.RoleService;
 
 @Service
 public class RoleServiceImpl extends BaseService implements RoleService {
 
-    private final RoleRepository repository;
+    private final RoleRepo repository;
 
-    public RoleServiceImpl(RoleRepository repository) {
+    public RoleServiceImpl(RoleRepo repository) {
         this.repository = repository;
     }
 

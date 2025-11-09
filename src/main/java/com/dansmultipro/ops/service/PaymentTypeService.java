@@ -1,4 +1,4 @@
-package com.dansmultipro.ops.service.master;
+package com.dansmultipro.ops.service;
 
 import com.dansmultipro.ops.dto.master.PaymentTypeResponseDto;
 

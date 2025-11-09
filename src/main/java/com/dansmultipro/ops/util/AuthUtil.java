@@ -1,7 +1,9 @@
 package com.dansmultipro.ops.util;
 
 import com.dansmultipro.ops.constant.RoleType;
+import com.dansmultipro.ops.model.user.User;
 import com.dansmultipro.ops.pojo.AuthorizationPOJO;
+import com.dansmultipro.ops.repository.UserRepo;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.security.core.Authentication;
@@ -11,47 +13,49 @@ import org.springframework.stereotype.Component;
 @Component
 public final class AuthUtil {
 
-    private static final UUID SYSTEM_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private final UserRepo userRepo;
 
-    public UUID idSystem() {
-        return resolvePrincipal()
-                .map(AuthorizationPOJO::getId)
-                .map(UUID::fromString)
-                .orElse(SYSTEM_USER_ID);
-    }
-
-    public UUID idLogin() {
-        return resolvePrincipal()
-                .map(AuthorizationPOJO::getId)
-                .map(UUID::fromString)
-                .orElseThrow(() -> new IllegalStateException("Authentication is required."));
-    }
-
-    public RoleType roleLogin() {
-        return resolvePrincipal()
-                .map(AuthorizationPOJO::getRole)
-                .orElseThrow(() -> new IllegalStateException("Authentication is required."));
-    }
-
-    public boolean hasRole(RoleType role) {
-        return resolvePrincipal()
-                .map(AuthorizationPOJO::getRole)
-                .map(role::equals)
-                .orElse(false);
+    public AuthUtil(UserRepo userRepo) {
+        this.userRepo = userRepo;
     }
 
     public boolean isAuthenticated() {
         return resolvePrincipal().isPresent();
     }
 
+    public UUID getSystemId() {
+        return userRepo.findFirstByRoleCode(RoleType.SYSTEM.name())
+                .map(User::getId)
+                .orElseThrow(() -> new IllegalStateException("System user is not configured."));
+    }
+
+    public UUID getLoginId() {
+        AuthorizationPOJO principal = resolvePrincipal()
+                .orElseThrow(() -> new IllegalStateException("Authentication is required."));
+        return UUID.fromString(principal.getId());
+    }
+
+    public RoleType roleLogin() {
+        AuthorizationPOJO principal = resolvePrincipal()
+                .orElseThrow(() -> new IllegalStateException("Authentication is required."));
+        return principal.getRole();
+    }
+
+    public boolean hasRole(RoleType role) {
+        Optional<AuthorizationPOJO> principal = resolvePrincipal();
+        if (principal.isEmpty()) {
+            return false;
+        }
+        return principal.get().getRole().equals(role);
+    }
+
     private Optional<AuthorizationPOJO> resolvePrincipal() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null) {
-            return Optional.empty();
-        }
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof AuthorizationPOJO authorizationPOJO) {
-            return Optional.of(authorizationPOJO);
+        if (authentication != null) {
+            Object principal = authentication.getPrincipal();
+            if (principal instanceof AuthorizationPOJO authorizationPOJO) {
+                return Optional.of(authorizationPOJO);
+            }
         }
         return Optional.empty();
     }

@@ -1,5 +1,6 @@
 package com.dansmultipro.ops.util;
 
+import com.dansmultipro.ops.dto.auth.TokenPair;
 import com.dansmultipro.ops.model.user.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -75,8 +76,5 @@ public class JwtUtil {
 
     public Duration getExpiration() {
         return expiration;
-    }
-
-    public record TokenPair(String token, Instant expiresAt) {
     }
 }
