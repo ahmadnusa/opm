@@ -1,7 +1,6 @@
 package com.dansmultipro.ops.model;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 import com.dansmultipro.ops.model.master.PaymentType;
 import com.dansmultipro.ops.model.master.ProductType;
@@ -48,9 +47,6 @@ public class Payment extends BaseEntity {
 
     @Column(name = "reference_no", length = 64)
     private String referenceNo;
-
-    @Column(name = "received_at")
-    private LocalDateTime receivedAt;
 
     public User getCustomer() {
         return customer;
@@ -124,11 +120,4 @@ public class Payment extends BaseEntity {
         this.referenceNo = referenceNo;
     }
 
-    public LocalDateTime getReceivedAt() {
-        return receivedAt;
-    }
-
-    public void setReceivedAt(LocalDateTime receivedAt) {
-        this.receivedAt = receivedAt;
-    }
 }

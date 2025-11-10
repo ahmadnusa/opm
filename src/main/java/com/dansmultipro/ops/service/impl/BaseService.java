@@ -1,7 +1,11 @@
 package com.dansmultipro.ops.service.impl;
 
 import com.dansmultipro.ops.constant.ResponseConstant;
+import com.dansmultipro.ops.constant.RoleTypeConstant;
+import com.dansmultipro.ops.exception.ResourceNotFoundException;
 import com.dansmultipro.ops.model.BaseEntity;
+import com.dansmultipro.ops.model.User;
+import com.dansmultipro.ops.repository.UserRepo;
 import com.dansmultipro.ops.util.AuthUtil;
 import com.dansmultipro.ops.util.UUIDUtil;
 import java.time.LocalDateTime;
@@ -11,19 +15,25 @@ import org.springframework.beans.factory.annotation.Autowired;
 public abstract class BaseService {
 
     protected AuthUtil authUtil;
+    protected UserRepo userRepo;
 
     @Autowired
     public void setAuthUtil(AuthUtil authUtil) {
         this.authUtil = authUtil;
     }
 
-    protected <E extends BaseEntity> E prepareInsert(E entity) {
-        return prepareInsert(entity, Boolean.TRUE);
+    @Autowired
+    public void setUserRepo(UserRepo userRepo) {
+        this.userRepo = userRepo;
     }
 
-    protected <E extends BaseEntity> E prepareInsert(E entity, Boolean isActive) {
+    protected <E extends BaseEntity> E prepareCreate(E entity) {
+        return prepareCreate(entity, Boolean.TRUE);
+    }
+
+    protected <E extends BaseEntity> E prepareCreate(E entity, Boolean isActive) {
         LocalDateTime now = LocalDateTime.now();
-        UUID actorId = authUtil.isAuthenticated() ? authUtil.getLoginId() : authUtil.getSystemId();
+        UUID actorId = resolveActorId();
 
         entity.setId(UUID.randomUUID());
         entity.setIsActive(isActive);
@@ -34,12 +44,24 @@ public abstract class BaseService {
     }
 
     protected <E extends BaseEntity> E prepareUpdate(E entity) {
-        UUID actorId = authUtil.isAuthenticated() ? authUtil.getLoginId() : authUtil.getSystemId();
+        UUID actorId = resolveActorId();
 
         entity.setUpdatedAt(LocalDateTime.now());
         entity.setUpdatedBy(actorId);
 
         return entity;
+    }
+
+    private UUID resolveActorId() {
+        return authUtil.isAuthenticated()
+                ? authUtil.getLoginId()
+                : fetchSystemUserId();
+    }
+
+    private UUID fetchSystemUserId() {
+        return userRepo.findFirstByRoleCode(RoleTypeConstant.SYSTEM.name())
+                .map(User::getId)
+                .orElseThrow(() -> new ResourceNotFoundException("System user is not configured."));
     }
 
     protected String messageBuilder(String resourceName, String action) {

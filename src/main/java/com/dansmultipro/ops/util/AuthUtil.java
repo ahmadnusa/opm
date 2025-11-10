@@ -1,9 +1,7 @@
 package com.dansmultipro.ops.util;
 
 import com.dansmultipro.ops.constant.RoleTypeConstant;
-import com.dansmultipro.ops.model.User;
 import com.dansmultipro.ops.pojo.AuthorizationPOJO;
-import com.dansmultipro.ops.repository.UserRepo;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.security.core.Authentication;
@@ -13,20 +11,8 @@ import org.springframework.stereotype.Component;
 @Component
 public final class AuthUtil {
 
-    private final UserRepo userRepo;
-
-    public AuthUtil(UserRepo userRepo) {
-        this.userRepo = userRepo;
-    }
-
     public boolean isAuthenticated() {
         return resolvePrincipal().isPresent();
-    }
-
-    public UUID getSystemId() {
-        return userRepo.findFirstByRoleCode(RoleTypeConstant.SYSTEM.name())
-                .map(User::getId)
-                .orElseThrow(() -> new IllegalStateException("System user is not configured."));
     }
 
     public UUID getLoginId() {

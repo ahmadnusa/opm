@@ -1,20 +1,8 @@
 package com.dansmultipro.ops.filter;
 
-import com.dansmultipro.ops.constant.RoleTypeConstant;
-import com.dansmultipro.ops.dto.common.ErrorResDto;
-import com.dansmultipro.ops.pojo.AuthorizationPOJO;
-import com.dansmultipro.ops.util.JwtUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -24,6 +12,19 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import com.dansmultipro.ops.constant.RoleTypeConstant;
+import com.dansmultipro.ops.dto.common.ErrorResDto;
+import com.dansmultipro.ops.pojo.AuthorizationPOJO;
+import com.dansmultipro.ops.util.JwtUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class TokenFilter extends OncePerRequestFilter {

@@ -15,7 +15,6 @@ import com.dansmultipro.ops.exception.ResourceNotFoundException;
 import com.dansmultipro.ops.model.master.Role;
 import com.dansmultipro.ops.model.User;
 import com.dansmultipro.ops.repository.RoleRepo;
-import com.dansmultipro.ops.repository.UserRepo;
 import com.dansmultipro.ops.spec.UserSpecification;
 import com.dansmultipro.ops.service.UserService;
 import com.dansmultipro.ops.util.JwtUtil;
@@ -44,7 +43,6 @@ public class UserServiceImpl extends BaseService implements UserService {
 
     private static final String RESOURCE_NAME = "User";
 
-    private final UserRepo userRepo;
     private final RoleRepo roleRepo;
     private final PasswordEncoder passwordEncoder;
 
@@ -52,12 +50,10 @@ public class UserServiceImpl extends BaseService implements UserService {
     private final AuthenticationManager authenticationManager;
 
     public UserServiceImpl(
-            UserRepo userRepo,
             RoleRepo roleRepo,
             PasswordEncoder passwordEncoder,
             JwtUtil jwtUtil,
             @Lazy AuthenticationManager authenticationManager) {
-        this.userRepo = userRepo;
         this.roleRepo = roleRepo;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
@@ -69,22 +65,16 @@ public class UserServiceImpl extends BaseService implements UserService {
     public ApiPostResponseDto register(RegisterRequestDto request) {
         validateEmailUniqueness(request.email());
 
+        RoleTypeConstant targetRole = determineRegistrationRole();
+
         User user = new User();
         user.setFullName(request.fullName());
         user.setEmail(request.email());
         user.setPassword(passwordEncoder.encode(request.password()));
+        user.setRole(fetchRole(targetRole.name()));
 
-        boolean authenticated = authUtil.isAuthenticated();
-
-        if (authenticated) {
-            ensureSuperAdminRole();
-        }
-
-        RoleTypeConstant targetRole = authenticated ? RoleTypeConstant.GATEWAY : RoleTypeConstant.CUSTOMER;
-
-        user.setRole(fetchRoleByCode(targetRole.name()));
         boolean activeFlag = targetRole == RoleTypeConstant.GATEWAY;
-        prepareInsert(user, activeFlag);
+        prepareCreate(user, activeFlag);
 
         User saved = userRepo.save(user);
         String message = messageBuilder(RESOURCE_NAME, ResponseConstant.SAVED.getValue());
@@ -166,10 +156,9 @@ public class UserServiceImpl extends BaseService implements UserService {
         ensureSuperAdminRole();
         Specification<User> spec = Specification.allOf(
                 UserSpecification.hasActiveStatus(isActive),
-                UserSpecification.hasRole(roleCode)
-        ).and(
-                Specification.not(UserSpecification.hasRole(RoleTypeConstant.SA.name())
-                        .or(UserSpecification.hasRole(RoleTypeConstant.SYSTEM.name()))));
+                UserSpecification.hasRole(roleCode)).and(
+                        Specification.not(UserSpecification.hasRole(RoleTypeConstant.SA.name())
+                                .or(UserSpecification.hasRole(RoleTypeConstant.SYSTEM.name()))));
 
         List<User> users = userRepo.findAll(spec);
 
@@ -215,6 +204,14 @@ public class UserServiceImpl extends BaseService implements UserService {
         }
     }
 
+    private RoleTypeConstant determineRegistrationRole() {
+        if (!authUtil.isAuthenticated()) {
+            return RoleTypeConstant.CUSTOMER;
+        }
+        ensureSuperAdminRole();
+        return RoleTypeConstant.GATEWAY;
+    }
+
     private void validateEmailUniqueness(String email) {
         boolean exists = userRepo.existsByEmailIgnoreCase(email);
         if (exists) {
@@ -228,7 +225,7 @@ public class UserServiceImpl extends BaseService implements UserService {
                         messageBuilder(RESOURCE_NAME, ResponseConstant.NOT_FOUND)));
     }
 
-    private Role fetchRoleByCode(String code) {
+    private Role fetchRole(String code) {
         return roleRepo.findByCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         messageBuilder("Role", ResponseConstant.NOT_FOUND)));
