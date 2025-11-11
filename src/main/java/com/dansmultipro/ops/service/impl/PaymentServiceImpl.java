@@ -2,10 +2,15 @@ package com.dansmultipro.ops.service.impl;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
+import com.dansmultipro.ops.config.RabbitConfig;
+import com.dansmultipro.ops.dto.notification.EmailNotificationMessageDto;
 import com.dansmultipro.ops.dto.payment.*;
+import com.dansmultipro.ops.util.EmailUtil;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
@@ -45,16 +50,20 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
     private final ProductTypeRepo productTypeRepo;
     private final PaymentTypeRepo paymentTypeRepo;
     private final StatusTypeRepo statusTypeRepo;
+    private final RabbitTemplate rabbitTemplate;
+    private final EmailUtil emailUtil;
 
     public PaymentServiceImpl(
             PaymentRepo paymentRepo,
             ProductTypeRepo productTypeRepo,
             PaymentTypeRepo paymentTypeRepo,
-            StatusTypeRepo statusTypeRepo) {
+            StatusTypeRepo statusTypeRepo, RabbitTemplate rabbitTemplate, EmailUtil emailUtil) {
         this.paymentRepo = paymentRepo;
         this.productTypeRepo = productTypeRepo;
         this.paymentTypeRepo = paymentTypeRepo;
         this.statusTypeRepo = statusTypeRepo;
+        this.rabbitTemplate = rabbitTemplate;
+        this.emailUtil = emailUtil;
     }
 
     @Override
@@ -77,6 +86,8 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
         prepareCreate(payment);
         Payment saved = paymentRepo.save(payment);
 
+        notifyGatewayOnCreation(saved);
+
         String message = messageBuilder(RESOURCE_NAME, ResponseConstant.SAVED.getValue());
         return new ApiPostResponseDto(saved.getId().toString(), message);
     }
@@ -89,6 +100,8 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
 
         Payment payment = fetchPayment(getUUID(id));
         ensureProcessing(payment);
+
+        boolean notifyCustomer = false;
 
         switch (normalizedStatus) {
             case "CANCELLED" -> {
@@ -114,6 +127,10 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
 
         prepareUpdate(payment);
         Payment updated = paymentRepo.save(payment);
+
+        if (!normalizedStatus.equals(StatusTypeConstant.CANCELLED.name())) {
+            notifyCustomerOnStatusChange(updated);
+        }
 
         String message = messageBuilder(RESOURCE_NAME, ResponseConstant.UPDATED.getValue());
         return new ApiPutResponseDto(updated.getOptLock(), message);
@@ -158,6 +175,39 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
         payment.setStatus(fetchStatusType(statusType));
         payment.setGatewayNote(gatewayNote);
         payment.setReferenceNo(referenceNo);
+    }
+
+    private void notifyGatewayOnCreation(Payment payment) {
+        resolveGatewayEmail().ifPresent(email -> {
+            EmailNotificationMessageDto message = new EmailNotificationMessageDto(
+                    email,
+                    emailUtil.buildGatewayCreationSubject(payment),
+                    emailUtil.buildGatewayCreationBody(payment));
+            rabbitTemplate.convertAndSend(
+                    RabbitConfig.PAYMENT_NOTIFICATION_EXCHANGE,
+                    RabbitConfig.PAYMENT_GATEWAY_NOTIFICATION_ROUTING_KEY,
+                    message);
+        });
+    }
+
+    private void notifyCustomerOnStatusChange(Payment payment) {
+        String email = payment.getCustomer().getEmail();
+
+        EmailNotificationMessageDto message = new EmailNotificationMessageDto(
+                email,
+                emailUtil.buildCustomerStatusSubject(payment),
+                emailUtil.buildCustomerStatusBody(payment));
+
+        rabbitTemplate.convertAndSend(
+                RabbitConfig.PAYMENT_NOTIFICATION_EXCHANGE,
+                RabbitConfig.PAYMENT_CUSTOMER_NOTIFICATION_ROUTING_KEY,
+                message);
+    }
+
+    private Optional<String> resolveGatewayEmail() {
+        return userRepo.findFirstByRoleCode(RoleTypeConstant.GATEWAY.name())
+                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
+                .map(User::getEmail);
     }
 
     private void ensureCustomerRole() {

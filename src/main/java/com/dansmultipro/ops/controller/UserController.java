@@ -1,5 +1,7 @@
 package com.dansmultipro.ops.controller;
 
+import com.dansmultipro.ops.dto.auth.RegisterRequestDto;
+import com.dansmultipro.ops.dto.common.ApiPostResponseDto;
 import com.dansmultipro.ops.dto.common.ApiPutResponseDto;
 import com.dansmultipro.ops.dto.user.PasswordUpdateRequestDto;
 import com.dansmultipro.ops.dto.user.UserApproveRequestDto;
@@ -8,15 +10,11 @@ import com.dansmultipro.ops.service.UserService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import java.util.List;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/users")
@@ -26,6 +24,12 @@ public class UserController {
 
     public UserController(UserService userService) {
         this.userService = userService;
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<ApiPostResponseDto> register(@Valid @RequestBody RegisterRequestDto request) {
+        ApiPostResponseDto response = userService.register(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PreAuthorize("hasRole('SA')")

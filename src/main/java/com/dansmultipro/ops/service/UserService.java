@@ -15,8 +15,6 @@ public interface UserService extends UserDetailsService {
 
     ApiPostResponseDto register(RegisterRequestDto request);
 
-    LoginResponseDto login(LoginRequestDto request);
-
     ApiPutResponseDto updatePassword(PasswordUpdateRequestDto request);
 
     ApiPutResponseDto approveCustomer(UserApproveRequestDto request);

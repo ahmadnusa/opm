@@ -46,39 +46,38 @@ public class TokenFilter extends OncePerRequestFilter {
             FilterChain filterChain) throws ServletException, IOException {
         boolean matched = antMatchers.stream()
                 .anyMatch(requestMatcher -> requestMatcher.matches(request));
-
-        if(!matched) {
-            String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                writeJsonError(response, "Authentication required: please log in");
+        String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            if (matched) {
+                filterChain.doFilter(request, response);
                 return;
             }
+            writeJsonError(response, "Authentication required: please log in");
+            return;
+        }
 
-            String token = authHeader.substring(7);
-            try {
-                Claims claims = jwtUtil.parseClaims(token);
-                String userId = claims.get("userId", String.class);
-                String roleValue = claims.get("role", String.class);
+        String token = authHeader.substring(7);
+        try {
+            Claims claims = jwtUtil.parseClaims(token);
+            String userId = claims.get("userId", String.class);
+            String roleValue = claims.get("role", String.class);
 
-                RoleTypeConstant role = RoleTypeConstant.valueOf(roleValue);
-                AuthorizationPOJO principal = new AuthorizationPOJO(userId, role);
-                List<SimpleGrantedAuthority> authorities =
-                        List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
+            RoleTypeConstant role = RoleTypeConstant.valueOf(roleValue);
+            AuthorizationPOJO principal = new AuthorizationPOJO(userId, role);
+            List<SimpleGrantedAuthority> authorities =
+                    List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
 
-                if (SecurityContextHolder.getContext().getAuthentication() == null) {
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(principal, null, authorities);
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                }
-                filterChain.doFilter(request, response);
-            } catch (JwtException ex) {
-                writeJsonError(response, ex.getMessage());
-            } catch (Exception ex) {
-                ex.printStackTrace();
-                writeJsonError(response, "Unauthorized");
+            if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(principal, null, authorities);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
             }
-        } else {
             filterChain.doFilter(request, response);
+        } catch (JwtException ex) {
+            writeJsonError(response, ex.getMessage());
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            writeJsonError(response, "Unauthorized");
         }
     }
 

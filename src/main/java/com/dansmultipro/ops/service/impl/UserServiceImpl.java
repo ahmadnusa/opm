@@ -46,9 +46,6 @@ public class UserServiceImpl extends BaseService implements UserService {
     private final RoleRepo roleRepo;
     private final PasswordEncoder passwordEncoder;
 
-    private final JwtUtil jwtUtil;
-    private final AuthenticationManager authenticationManager;
-
     public UserServiceImpl(
             RoleRepo roleRepo,
             PasswordEncoder passwordEncoder,
@@ -56,8 +53,6 @@ public class UserServiceImpl extends BaseService implements UserService {
             @Lazy AuthenticationManager authenticationManager) {
         this.roleRepo = roleRepo;
         this.passwordEncoder = passwordEncoder;
-        this.jwtUtil = jwtUtil;
-        this.authenticationManager = authenticationManager;
     }
 
     @Override
@@ -79,29 +74,6 @@ public class UserServiceImpl extends BaseService implements UserService {
         User saved = userRepo.save(user);
         String message = messageBuilder(RESOURCE_NAME, ResponseConstant.SAVED.getValue());
         return new ApiPostResponseDto(saved.getId().toString(), message);
-    }
-
-    @Override
-    public LoginResponseDto login(LoginRequestDto request) {
-        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                request.email(), request.password());
-
-        try {
-            authenticationManager.authenticate(auth);
-        } catch (DisabledException ex) {
-            throw new BusinessRuleException(messageBuilder(RESOURCE_NAME, ResponseConstant.ACCOUNT_INACTIVE));
-        } catch (BadCredentialsException ex) {
-            throw new BusinessRuleException(messageBuilder("Credential:", ResponseConstant.INVALID_CREDENTIAL));
-        }
-
-        User user = userRepo.findByEmailIgnoreCase(request.email())
-                .orElseThrow(() -> new BusinessRuleException(
-                        messageBuilder(RESOURCE_NAME, ResponseConstant.NOT_FOUND)));
-
-        TokenPair tokenPair = jwtUtil.generateToken(user);
-
-        return new LoginResponseDto(user.getFullName(), user.getRole().getCode(), tokenPair.token(),
-                tokenPair.expiresAt().toString());
     }
 
     @Override
@@ -155,7 +127,8 @@ public class UserServiceImpl extends BaseService implements UserService {
         ensureSuperAdminRole();
         Specification<User> spec = Specification.allOf(
                 UserSpecification.hasActiveStatus(isActive),
-                UserSpecification.hasRole(roleCode)).and(
+                UserSpecification.hasRole(roleCode))
+                .and(
                         Specification.not(UserSpecification.hasRole(RoleTypeConstant.SA.name())
                                 .or(UserSpecification.hasRole(RoleTypeConstant.SYSTEM.name()))));
 
