@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/users")
-@SecurityRequirement(name = "bearerAuth")
 public class UserController {
 
     private final UserService userService;

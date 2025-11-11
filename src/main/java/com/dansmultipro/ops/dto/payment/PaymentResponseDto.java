@@ -1,7 +1,5 @@
 package com.dansmultipro.ops.dto.payment;
 
-import java.math.BigDecimal;
-
 public record PaymentResponseDto(
         String id,
         String customerId,
@@ -9,7 +7,7 @@ public record PaymentResponseDto(
         String productType,
         String paymentType,
         String customerNumber,
-        BigDecimal amount,
+        String amount,
         String status,
         String referenceNo,
         Boolean isActive,

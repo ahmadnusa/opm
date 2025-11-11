@@ -15,7 +15,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 @RestController
 @RequestMapping("/roles")
-@SecurityRequirement(name = "bearerAuth")
 public class RoleController {
 
     private final RoleService service;

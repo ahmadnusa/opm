@@ -18,18 +18,18 @@ public final class AuthUtil {
     public UUID getLoginId() {
         AuthorizationPOJO principal = resolvePrincipal()
                 .orElseThrow(() -> new IllegalStateException("Authentication is required."));
-        return UUID.fromString(principal.getId());
+        return UUID.fromString(principal.id());
     }
 
     public RoleTypeConstant roleLogin() {
         AuthorizationPOJO principal = resolvePrincipal()
                 .orElseThrow(() -> new IllegalStateException("Authentication is required."));
-        return principal.getRole();
+        return principal.role();
     }
 
     public boolean hasRole(RoleTypeConstant role) {
         Optional<AuthorizationPOJO> principal = resolvePrincipal();
-        return principal.map(authorizationPOJO -> authorizationPOJO.getRole().equals(role)).orElse(false);
+        return principal.map(authorizationPOJO -> authorizationPOJO.role().equals(role)).orElse(false);
     }
 
     private Optional<AuthorizationPOJO> resolvePrincipal() {

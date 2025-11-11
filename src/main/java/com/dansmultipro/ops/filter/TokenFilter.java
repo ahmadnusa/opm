@@ -31,10 +31,12 @@ public class TokenFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final List<RequestMatcher> antMatchers;
+    private final ObjectMapper objectMapper;
 
-    public TokenFilter(JwtUtil jwtUtil, List<RequestMatcher> antMatchers) {
+    public TokenFilter(JwtUtil jwtUtil, List<RequestMatcher> antMatchers, ObjectMapper objectMapper) {
         this.jwtUtil = jwtUtil;
         this.antMatchers = antMatchers;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -72,6 +74,7 @@ public class TokenFilter extends OncePerRequestFilter {
             } catch (JwtException ex) {
                 writeJsonError(response, ex.getMessage());
             } catch (Exception ex) {
+                ex.printStackTrace();
                 writeJsonError(response, "Unauthorized");
             }
         } else {
@@ -83,7 +86,7 @@ public class TokenFilter extends OncePerRequestFilter {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        String json = new ObjectMapper().writeValueAsString(new ErrorResDto<>(message));
+        String json = objectMapper.writeValueAsString(new ErrorResDto<>(message));
         response.getWriter().write(json);
     }
 }

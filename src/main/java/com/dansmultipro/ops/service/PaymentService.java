@@ -1,5 +1,6 @@
 package com.dansmultipro.ops.service;
 
+import com.dansmultipro.ops.dto.payment.PageResponse;
 import org.springframework.data.domain.Page;
 
 import com.dansmultipro.ops.constant.StatusTypeConstant;
@@ -15,7 +16,7 @@ public interface PaymentService {
 
     ApiPutResponseDto updateStatus(String id, String status, PaymentStatusUpdateRequestDto request);
 
-    Page<?> getAll(StatusTypeConstant status, int page, int size, String sortBy, String sortDirection);
+    PageResponse<?> getAll(StatusTypeConstant status, int page, int size, String sortBy, String sortDirection);
 
     PaymentResponseDto getById(String id);
 }

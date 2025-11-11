@@ -133,19 +133,18 @@ public class UserServiceImpl extends BaseService implements UserService {
     @Transactional
     public ApiPutResponseDto approveCustomer(UserApproveRequestDto request) {
         ensureSuperAdminRole();
-        List<User> approvedUsers = new ArrayList<>();
-        List<String> userIds = request.userIds();
 
-        for (String id : userIds) {
-            User user = fetchUser(getUUID(id));
-            if (!user.getIsActive()) {
-                user.setIsActive(Boolean.TRUE);
+        List<UUID> userIds = request.userIds().stream().map(this::getUUID).toList();
+        List<User> users = userRepo.findAllById(userIds);
+
+        users.forEach(user -> {
+            if (!Boolean.TRUE.equals(user.getIsActive())) {
+                user.setIsActive(true);
                 prepareUpdate(user);
             }
-            approvedUsers.add(user);
-        }
+        });
 
-        List<User> updatedUsers = userRepo.saveAllAndFlush(approvedUsers);
+        List<User> updatedUsers = userRepo.saveAllAndFlush(users);
 
         String message = messageBuilder(RESOURCE_NAME, ResponseConstant.UPDATED.getValue());
         return new ApiPutResponseDto(updatedUsers.getFirst().getOptLock(), message);

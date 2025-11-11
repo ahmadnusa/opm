@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/payment-types")
-@SecurityRequirement(name = "bearerAuth")
 public class PaymentTypeController {
 
     private final PaymentTypeService service;

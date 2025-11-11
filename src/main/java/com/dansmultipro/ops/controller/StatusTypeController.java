@@ -14,7 +14,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/status-types")
-@SecurityRequirement(name = "bearerAuth")
 public class StatusTypeController {
 
     private final StatusTypeService service;

@@ -14,7 +14,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/product-types")
-@SecurityRequirement(name = "bearerAuth")
 public class ProductTypeController {
 
     private final ProductTypeService service;

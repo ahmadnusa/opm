@@ -7,7 +7,7 @@ public record PaymentCustomerResponseDto(
         String productType,
         String paymentType,
         String customerNumber,
-        BigDecimal amount,
+        String amount,
         String status,
         String referenceNo) {
 }

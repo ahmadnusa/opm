@@ -1,10 +1,11 @@
 package com.dansmultipro.ops.service.impl;
 
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
+import com.dansmultipro.ops.dto.payment.*;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
@@ -19,10 +20,6 @@ import com.dansmultipro.ops.constant.RoleTypeConstant;
 import com.dansmultipro.ops.constant.StatusTypeConstant;
 import com.dansmultipro.ops.dto.common.ApiPostResponseDto;
 import com.dansmultipro.ops.dto.common.ApiPutResponseDto;
-import com.dansmultipro.ops.dto.payment.PaymentCreateRequestDto;
-import com.dansmultipro.ops.dto.payment.PaymentCustomerResponseDto;
-import com.dansmultipro.ops.dto.payment.PaymentResponseDto;
-import com.dansmultipro.ops.dto.payment.PaymentStatusUpdateRequestDto;
 import com.dansmultipro.ops.exception.BusinessRuleException;
 import com.dansmultipro.ops.exception.ResourceNotFoundException;
 import com.dansmultipro.ops.model.Payment;
@@ -43,9 +40,6 @@ import jakarta.transaction.Transactional;
 public class PaymentServiceImpl extends BaseService implements PaymentService {
 
     private static final String RESOURCE_NAME = "Payment";
-    private static final DateTimeFormatter REF_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-    private static final int REF_RANDOM_LENGTH = 6;
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final PaymentRepo paymentRepo;
     private final ProductTypeRepo productTypeRepo;
@@ -126,8 +120,11 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
     }
 
     @Override
-    @Cacheable(value = "payments", key = "#root.target.buildCacheKey(#status, #page, #size, #sortBy, #sortDirection)")
-    public Page<?> getAll(StatusTypeConstant status, int page, int size, String sortBy, String sortDirection) {
+    @Cacheable(
+            value = "payments",
+            key = "#root.target.buildCacheKey(#status, #page, #size, #sortBy, #sortDirection)"
+    )
+    public PageResponse<?> getAll(StatusTypeConstant status, int page, int size, String sortBy, String sortDirection) {
         Specification<Payment> spec = Specification.allOf(
                 PaymentSpecsification.byStatus(status));
 
@@ -139,16 +136,21 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
 
         Pageable pageable = buildPageable(page, size, sortBy, sortDirection);
         Page<Payment> payments = paymentRepo.findAll(spec, pageable);
-        return isCustomer
-                ? payments.map(this::toCustomerDto)
-                : payments.map(this::toDto);
+
+        Page<?> mappedDto = isCustomer ? payments.map(this::toCustomerDto) : payments.map(this::toListDto);
+
+        return toPageResponse(mappedDto, sortBy, sortDirection);
     }
 
     @Override
     public PaymentResponseDto getById(String id) {
         Payment payment = fetchPayment(getUUID(id));
 
-        return toDto(payment);
+        if (authUtil.hasRole(RoleTypeConstant.CUSTOMER)) {
+            ensureOwner(payment);
+        }
+
+        return toListDto(payment);
     }
 
     private void applyStatusChange(Payment payment, StatusTypeConstant statusType, String gatewayNote,
@@ -215,13 +217,11 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
     }
 
     private String generateReferenceNo() {
-        String timestamp = LocalDateTime.now().format(REF_FORMATTER);
-        StringBuilder randomPart = new StringBuilder();
-        for (int i = 0; i < REF_RANDOM_LENGTH; i++) {
-            int value = RANDOM.nextInt(36);
-            randomPart.append(Character.toUpperCase(Character.forDigit(value, 36)));
-        }
-        return "PGW-%s-%s".formatted(timestamp, randomPart);
+        String timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        int bound = (int) Math.pow(36, 6);
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        String rand6 = Integer.toString(random.nextInt(bound), 36).toUpperCase();
+        return "PGW-%s-%s".formatted(timeStamp, rand6);
     }
 
     private Pageable buildPageable(int page, int size, String sortBy, String sortDirection) {
@@ -234,7 +234,7 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
         return PageRequest.of(safePage, safeSize, Sort.by(direction, sortProperty));
     }
 
-    private PaymentResponseDto toDto(Payment payment) {
+    private PaymentResponseDto toListDto(Payment payment) {
         return new PaymentResponseDto(
                 payment.getId().toString(),
                 payment.getCustomer().getId().toString(),
@@ -242,7 +242,7 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
                 payment.getProductType().getCode(),
                 payment.getPaymentType().getCode(),
                 payment.getCustomerNumber(),
-                payment.getAmount(),
+                payment.getAmount().toString(),
                 payment.getStatus().getCode(),
                 payment.getReferenceNo(),
                 payment.getIsActive(),
@@ -255,28 +255,35 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
                 payment.getProductType().getCode(),
                 payment.getPaymentType().getCode(),
                 payment.getCustomerNumber(),
-                payment.getAmount(),
+                payment.getAmount().toString(),
                 payment.getStatus().getCode(),
                 payment.getReferenceNo());
     }
 
-    public String buildCacheKey(StatusTypeConstant status, int page, int size, String sortBy, String sortDirection) {
+    private PageResponse<?> toPageResponse(Page<?> page, String sortBy, String sortDir) {
+        return new PageResponse<>(
+                page.getContent(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isLast(),
+                sortBy, sortDir
+        );
+    }
+
+    public String buildCacheKey(StatusTypeConstant status, int page, int size, String sortBy, String sortDir) {
         RoleTypeConstant role = authUtil.roleLogin();
-        String statusCode = status == null ? "ALL" : status.name();
-        String normalizedSort = (sortBy == null || sortBy.isBlank()) ? "createdAt" : sortBy;
-        String normalizedDirection = (sortDirection == null || sortDirection.isBlank())
-                ? "DESC"
-                : sortDirection.toUpperCase();
-        String baseKey = "%s:%s:%d:%d:%s:%s".formatted(
-                role.name(),
-                statusCode,
-                page,
-                size,
-                normalizedSort,
-                normalizedDirection);
-        if (role == RoleTypeConstant.CUSTOMER) {
-            return baseKey + ":" + authUtil.getLoginId();
-        }
-        return baseKey;
+        String customer = (role == RoleTypeConstant.CUSTOMER) ? authUtil.getLoginId().toString() :
+                "ALL";
+        String statusCode = (status == null) ? "ALL" : status.name();
+        String normalizeSortBy = (sortBy == null || sortBy.isBlank()) ? "createdAt" : sortBy;
+        String normalizeDir = (sortDir == null || sortDir.isBlank()) ? "DESC" :
+                sortDir.toUpperCase();
+
+        return String.join(":", "v1","payments","getAll",
+                role.name(), statusCode,
+                String.valueOf(page), String.valueOf(size),
+                normalizeSortBy, normalizeDir, customer);
     }
 }

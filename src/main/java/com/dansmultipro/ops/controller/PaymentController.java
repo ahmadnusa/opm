@@ -3,6 +3,7 @@ package com.dansmultipro.ops.controller;
 import com.dansmultipro.ops.constant.StatusTypeConstant;
 import com.dansmultipro.ops.dto.common.ApiPostResponseDto;
 import com.dansmultipro.ops.dto.common.ApiPutResponseDto;
+import com.dansmultipro.ops.dto.payment.PageResponse;
 import com.dansmultipro.ops.dto.payment.PaymentCreateRequestDto;
 import com.dansmultipro.ops.dto.payment.PaymentStatusUpdateRequestDto;
 import com.dansmultipro.ops.dto.payment.PaymentResponseDto;
@@ -24,7 +25,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/payments")
-@SecurityRequirement(name = "bearerAuth")
 public class PaymentController {
 
     private final PaymentService paymentService;
@@ -51,13 +51,14 @@ public class PaymentController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<?>> getAll(
+    @PreAuthorize("hasAnyRole('SA', 'CUSTOMER','GATEWAY')")
+    public ResponseEntity<PageResponse<?>> getAll(
             @RequestParam(required = false) StatusTypeConstant status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDirection) {
-        Page<?> response = paymentService.getAll(status, page, size, sortBy, sortDirection);
+        PageResponse<?> response = paymentService.getAll(status, page, size, sortBy, sortDirection);
         return ResponseEntity.ok(response);
     }
 
