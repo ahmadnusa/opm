@@ -1,16 +1,5 @@
 package com.dansmultipro.ops.controller;
 
-import com.dansmultipro.ops.constant.StatusTypeConstant;
-import com.dansmultipro.ops.dto.common.ApiPostResponseDto;
-import com.dansmultipro.ops.dto.common.ApiPutResponseDto;
-import com.dansmultipro.ops.dto.payment.PageResponse;
-import com.dansmultipro.ops.dto.payment.PaymentCreateRequestDto;
-import com.dansmultipro.ops.dto.payment.PaymentStatusUpdateRequestDto;
-import com.dansmultipro.ops.dto.payment.PaymentResponseDto;
-import com.dansmultipro.ops.service.PaymentService;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,6 +11,18 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.dansmultipro.ops.constant.StatusTypeConstant;
+import com.dansmultipro.ops.dto.common.ApiPostResponseDto;
+import com.dansmultipro.ops.dto.common.ApiPutResponseDto;
+import com.dansmultipro.ops.dto.payment.PageResponseDto;
+import com.dansmultipro.ops.dto.payment.PaymentCreateRequestDto;
+import com.dansmultipro.ops.dto.payment.PaymentCustomerResponseDto;
+import com.dansmultipro.ops.dto.payment.PaymentResponseDto;
+import com.dansmultipro.ops.dto.payment.PaymentStatusUpdateRequestDto;
+import com.dansmultipro.ops.service.PaymentService;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/payments")
@@ -51,14 +52,22 @@ public class PaymentController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SA', 'CUSTOMER','GATEWAY')")
-    public ResponseEntity<PageResponse<?>> getAll(
+    @PreAuthorize("hasAnyRole('SA','GATEWAY')")
+    public ResponseEntity<PageResponseDto<PaymentResponseDto>> getAll(
             @RequestParam(required = false) StatusTypeConstant status,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDirection) {
-        PageResponse<?> response = paymentService.getAll(status, page, size, sortBy, sortDirection);
+            @RequestParam(defaultValue = "10") int size) {
+        PageResponseDto<PaymentResponseDto> response = paymentService.getAll(status, page, size);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/customer")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<PageResponseDto<PaymentCustomerResponseDto>> getAllByCustomer(
+            @RequestParam(required = false) StatusTypeConstant status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        PageResponseDto<PaymentCustomerResponseDto> response = paymentService.getAllByCustomer(status, page, size);
         return ResponseEntity.ok(response);
     }
 

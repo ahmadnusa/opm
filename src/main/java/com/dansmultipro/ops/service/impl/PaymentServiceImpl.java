@@ -101,8 +101,6 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
         Payment payment = fetchPayment(getUUID(id));
         ensureProcessing(payment);
 
-        boolean notifyCustomer = false;
-
         switch (normalizedStatus) {
             case "CANCELLED" -> {
                 ensureCustomerRole();
@@ -139,24 +137,34 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
     @Override
     @Cacheable(
             value = "payments",
-            key = "#root.target.buildCacheKey(#status, #page, #size, #sortBy, #sortDirection)"
+            key = "'getAll:' + (#status == null ? 'ALL' : #status.name()) + ':' + #page + ':' + #size"
     )
-    public PageResponse<?> getAll(StatusTypeConstant status, int page, int size, String sortBy, String sortDirection) {
-        Specification<Payment> spec = Specification.allOf(
-                PaymentSpecsification.byStatus(status));
+    public PageResponseDto<PaymentResponseDto> getAll(StatusTypeConstant status, int page, int size) {
+        Specification<Payment> spec = Specification.allOf(PaymentSpecsification.byStatus(status));
 
-        RoleTypeConstant role = authUtil.roleLogin();
-        boolean isCustomer = role == RoleTypeConstant.CUSTOMER;
-        if (isCustomer) {
-            spec = spec.and(PaymentSpecsification.byCustomerId(authUtil.getLoginId()));
-        }
-
-        Pageable pageable = buildPageable(page, size, sortBy, sortDirection);
+        Pageable pageable = buildPageable(page, size);
         Page<Payment> payments = paymentRepo.findAll(spec, pageable);
+        Page<PaymentResponseDto> mappedDto = payments.map(this::toListDto);
 
-        Page<?> mappedDto = isCustomer ? payments.map(this::toCustomerDto) : payments.map(this::toListDto);
+        return toPageResponse(mappedDto);
+    }
 
-        return toPageResponse(mappedDto, sortBy, sortDirection);
+    @Override
+    @Cacheable(
+            value = "payments",
+            key = "'getAllByCustomer:' + (#status == null ? 'ALL' : #status.name()) + ':' + #page + ':' + #size + ':' + #root.target.authUtil.getLoginId()"
+    )
+    public PageResponseDto<PaymentCustomerResponseDto> getAllByCustomer(StatusTypeConstant status, int page, int size) {
+        ensureCustomerRole();
+        Specification<Payment> spec = Specification.allOf(
+                PaymentSpecsification.byStatus(status),
+                PaymentSpecsification.byCustomerId(authUtil.getLoginId()));
+
+        Pageable pageable = buildPageable(page, size);
+        Page<Payment> payments = paymentRepo.findAll(spec, pageable);
+        Page<PaymentCustomerResponseDto> mappedDto = payments.map(this::toCustomerDto);
+
+        return toPageResponse(mappedDto);
     }
 
     @Override
@@ -222,6 +230,7 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
         }
     }
 
+
     private void ensureOwner(Payment payment) {
         UUID loginId = authUtil.getLoginId();
         UUID customerId = payment.getCustomer().getId();
@@ -274,14 +283,10 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
         return "PGW-%s-%s".formatted(timeStamp, rand6);
     }
 
-    private Pageable buildPageable(int page, int size, String sortBy, String sortDirection) {
+    private Pageable buildPageable(int page, int size) {
         int safePage = Math.max(page, 0);
         int safeSize = size <= 0 ? 10 : size;
-        String sortProperty = (sortBy == null || sortBy.isBlank()) ? "createdAt" : sortBy;
-        Sort.Direction direction = "ASC".equalsIgnoreCase(sortDirection)
-                ? Sort.Direction.ASC
-                : Sort.Direction.DESC;
-        return PageRequest.of(safePage, safeSize, Sort.by(direction, sortProperty));
+        return PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
     }
 
     private PaymentResponseDto toListDto(Payment payment) {
@@ -310,30 +315,16 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
                 payment.getReferenceNo());
     }
 
-    private PageResponse<?> toPageResponse(Page<?> page, String sortBy, String sortDir) {
-        return new PageResponse<>(
+    private <T> PageResponseDto<T> toPageResponse(Page<T> page) {
+        return new PageResponseDto<>(
                 page.getContent(),
                 page.getNumber(),
                 page.getSize(),
                 page.getTotalElements(),
                 page.getTotalPages(),
                 page.isLast(),
-                sortBy, sortDir
+                "createdAt",
+                "DESC"
         );
-    }
-
-    public String buildCacheKey(StatusTypeConstant status, int page, int size, String sortBy, String sortDir) {
-        RoleTypeConstant role = authUtil.roleLogin();
-        String customer = (role == RoleTypeConstant.CUSTOMER) ? authUtil.getLoginId().toString() :
-                "ALL";
-        String statusCode = (status == null) ? "ALL" : status.name();
-        String normalizeSortBy = (sortBy == null || sortBy.isBlank()) ? "createdAt" : sortBy;
-        String normalizeDir = (sortDir == null || sortDir.isBlank()) ? "DESC" :
-                sortDir.toUpperCase();
-
-        return String.join(":", "v1","payments","getAll",
-                role.name(), statusCode,
-                String.valueOf(page), String.valueOf(size),
-                normalizeSortBy, normalizeDir, customer);
     }
 }

@@ -1,42 +1,35 @@
 package com.dansmultipro.ops.service.impl;
 
-import com.dansmultipro.ops.constant.ResponseConstant;
-import com.dansmultipro.ops.constant.RoleTypeConstant;
-import com.dansmultipro.ops.dto.auth.LoginRequestDto;
-import com.dansmultipro.ops.dto.auth.LoginResponseDto;
-import com.dansmultipro.ops.dto.auth.RegisterRequestDto;
-import com.dansmultipro.ops.dto.common.ApiPostResponseDto;
-import com.dansmultipro.ops.dto.common.ApiPutResponseDto;
-import com.dansmultipro.ops.dto.user.PasswordUpdateRequestDto;
-import com.dansmultipro.ops.dto.user.UserApproveRequestDto;
-import com.dansmultipro.ops.dto.user.UserResponseDto;
-import com.dansmultipro.ops.exception.BusinessRuleException;
-import com.dansmultipro.ops.exception.ResourceNotFoundException;
-import com.dansmultipro.ops.model.master.Role;
-import com.dansmultipro.ops.model.User;
-import com.dansmultipro.ops.repository.RoleRepo;
-import com.dansmultipro.ops.spec.UserSpecification;
-import com.dansmultipro.ops.service.UserService;
-import com.dansmultipro.ops.util.JwtUtil;
-import com.dansmultipro.ops.dto.auth.TokenPair;
-
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-import jakarta.transaction.Transactional;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.DisabledException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import com.dansmultipro.ops.constant.ResponseConstant;
+import com.dansmultipro.ops.constant.RoleTypeConstant;
+import com.dansmultipro.ops.dto.auth.RegisterRequestDto;
+import com.dansmultipro.ops.dto.common.ApiPostResponseDto;
+import com.dansmultipro.ops.dto.common.ApiPutResponseDto;
+import com.dansmultipro.ops.dto.user.PasswordUpdateRequestDto;
+import com.dansmultipro.ops.dto.user.UserResponseDto;
+import com.dansmultipro.ops.exception.BusinessRuleException;
+import com.dansmultipro.ops.exception.ResourceNotFoundException;
+import com.dansmultipro.ops.model.User;
+import com.dansmultipro.ops.model.master.Role;
+import com.dansmultipro.ops.repository.RoleRepo;
+import com.dansmultipro.ops.service.UserService;
+import com.dansmultipro.ops.spec.UserSpecification;
+import com.dansmultipro.ops.util.JwtUtil;
+
+import jakarta.transaction.Transactional;
 
 @Service
 public class UserServiceImpl extends BaseService implements UserService {
@@ -61,6 +54,9 @@ public class UserServiceImpl extends BaseService implements UserService {
         validateEmailUniqueness(request.email());
 
         RoleTypeConstant targetRole = determineRegistrationRole();
+        if (targetRole == RoleTypeConstant.GATEWAY && gatewayUserExists()) {
+            throw new BusinessRuleException("Gateway user already exists.");
+        }
 
         User user = new User();
         user.setFullName(request.fullName());
@@ -103,11 +99,18 @@ public class UserServiceImpl extends BaseService implements UserService {
 
     @Override
     @Transactional
-    public ApiPutResponseDto approveCustomer(UserApproveRequestDto request) {
+    public ApiPutResponseDto approveCustomer(List<String> customerIds) {
         ensureSuperAdminRole();
+        if (customerIds == null || customerIds.isEmpty()) {
+            throw new BusinessRuleException("customerIds must not be empty.");
+        }
 
-        List<UUID> userIds = request.userIds().stream().map(this::getUUID).toList();
+        List<UUID> userIds = customerIds.stream().map(this::getUUID).toList();
         List<User> users = userRepo.findAllById(userIds);
+        if (users.isEmpty()) {
+            throw new ResourceNotFoundException(
+                    messageBuilder(RESOURCE_NAME, ResponseConstant.NOT_FOUND));
+        }
 
         users.forEach(user -> {
             if (!Boolean.TRUE.equals(user.getIsActive())) {
@@ -189,6 +192,10 @@ public class UserServiceImpl extends BaseService implements UserService {
         if (exists) {
             throw new BusinessRuleException(messageBuilder("Email", ResponseConstant.ALREADY_EXISTS));
         }
+    }
+
+    private boolean gatewayUserExists() {
+        return userRepo.findFirstByRoleCode(RoleTypeConstant.GATEWAY.name()).isPresent();
     }
 
     private User fetchUser(UUID id) {

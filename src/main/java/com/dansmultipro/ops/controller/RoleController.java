@@ -11,8 +11,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.dansmultipro.ops.dto.master.RoleResponseDto;
 import com.dansmultipro.ops.service.RoleService;
 
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-
 @RestController
 @RequestMapping("/roles")
 public class RoleController {
