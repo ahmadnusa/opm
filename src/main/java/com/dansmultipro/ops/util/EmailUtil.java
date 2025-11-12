@@ -1,7 +1,7 @@
 package com.dansmultipro.ops.util;
 
 import com.dansmultipro.ops.constant.StatusTypeConstant;
-import com.dansmultipro.ops.model.Payment;
+import com.dansmultipro.ops.dto.notification.PaymentEmailPayload;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
@@ -23,33 +23,41 @@ public class EmailUtil {
         mailSender.send(message);
     }
 
-    public String buildGatewayCreationSubject(Payment payment) {
-        return "[OPS] Payment Created - %s".formatted(payment.getId());
+    public String buildGatewayCreationSubject(PaymentEmailPayload payload) {
+        return "[OPS] Payment Created - %s".formatted(payload.paymentId());
     }
 
-    public String buildGatewayCreationBody(Payment payment) {
+    public String buildGatewayCreationBody(PaymentEmailPayload payload) {
         return "A new payment has been created with ID %s for customer %s (%s).".formatted(
-                payment.getId(),
-                payment.getCustomer().getFullName(),
-                payment.getCustomerNumber());
+                payload.paymentId(),
+                payload.customerFullName(),
+                payload.customerNumber());
     }
 
-    public String buildCustomerStatusSubject(Payment payment) {
-        return "[OPS] Payment %s - %s".formatted(payment.getId(), payment.getStatus().getCode());
+    public String buildCustomerStatusSubject(PaymentEmailPayload payload) {
+        return "[OPS] Payment %s - %s".formatted(payload.paymentId(), payload.statusCode());
     }
 
-    public String buildCustomerStatusBody(Payment payment) {
-        String statusCode = payment.getStatus().getCode();
+    public String buildCustomerStatusBody(PaymentEmailPayload payload) {
+        String statusCode = payload.statusCode();
         String base = "Your payment %s for customer number %s is %s.".formatted(
-                payment.getId(),
-                payment.getCustomerNumber(),
+                payload.paymentId(),
+                payload.customerNumber(),
                 statusCode.toLowerCase());
-        if (StatusTypeConstant.REJECTED.name().equalsIgnoreCase(statusCode) && payment.getGatewayNote() != null) {
-            return base + " Gateway note: " + payment.getGatewayNote();
+        if (StatusTypeConstant.REJECTED.name().equalsIgnoreCase(statusCode) && payload.gatewayNote() != null) {
+            return base + " Gateway note: " + payload.gatewayNote();
         }
-        if (StatusTypeConstant.APPROVED.name().equalsIgnoreCase(statusCode) && payment.getReferenceNo() != null) {
-            return base + " Reference number: " + payment.getReferenceNo();
+        if (StatusTypeConstant.APPROVED.name().equalsIgnoreCase(statusCode) && payload.referenceNo() != null) {
+            return base + " Reference number: " + payload.referenceNo();
         }
         return base;
+    }
+
+    public String buildForgotPasswordSubject() {
+        return "[OPS] Temporary Password";
+    }
+
+    public String buildForgotPasswordBody(String temporaryPassword) {
+        return "Your temporary password is: %s. Please log in and change it immediately.".formatted(temporaryPassword);
     }
 }

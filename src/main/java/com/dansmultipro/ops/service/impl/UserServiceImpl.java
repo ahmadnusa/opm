@@ -1,9 +1,13 @@
 package com.dansmultipro.ops.service.impl;
 
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.UUID;
 
+import com.dansmultipro.ops.config.RabbitConfig;
 import com.dansmultipro.ops.dto.common.ApiDeleteResponseDto;
+import com.dansmultipro.ops.dto.notification.EmailNotificationMessageDto;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,6 +19,7 @@ import com.dansmultipro.ops.constant.ResponseConstant;
 import com.dansmultipro.ops.constant.RoleTypeConstant;
 import com.dansmultipro.ops.dto.auth.RegisterRequestDto;
 import com.dansmultipro.ops.dto.common.ApiPostResponseDto;
+import com.dansmultipro.ops.dto.user.ForgotPasswordRequestDto;
 import com.dansmultipro.ops.dto.user.PasswordUpdateRequestDto;
 import com.dansmultipro.ops.dto.user.UserResponseDto;
 import com.dansmultipro.ops.exception.BusinessRuleException;
@@ -31,15 +36,21 @@ import jakarta.transaction.Transactional;
 public class UserServiceImpl extends BaseService implements UserService {
 
     private static final String RESOURCE_NAME = "User";
+    private static final String TEMP_PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    private static final int TEMP_PASSWORD_LENGTH = 12;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final RoleRepo roleRepo;
     private final PasswordEncoder passwordEncoder;
+    private final RabbitTemplate rabbitTemplate;
 
     public UserServiceImpl(
             RoleRepo roleRepo,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            RabbitTemplate rabbitTemplate) {
         this.roleRepo = roleRepo;
         this.passwordEncoder = passwordEncoder;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     @Override
@@ -88,6 +99,28 @@ public class UserServiceImpl extends BaseService implements UserService {
         userRepo.save(prepareUpdate(user));
 
         String message = messageBuilder(RESOURCE_NAME, ResponseConstant.UPDATED.getValue());
+        return new ApiDeleteResponseDto(message);
+    }
+
+    @Override
+    @Transactional
+    public ApiDeleteResponseDto forgotPassword(ForgotPasswordRequestDto request) {
+        User user = userRepo.findByEmailIgnoreCase(request.email())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        messageBuilder("Email", ResponseConstant.NOT_FOUND)));
+
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new BusinessRuleException(messageBuilder(RESOURCE_NAME, ResponseConstant.ACCOUNT_INACTIVE));
+        }
+
+        String temporaryPassword = generateTemporaryPassword();
+        user.setPassword(passwordEncoder.encode(temporaryPassword));
+
+        userRepo.save(prepareUpdate(user));
+
+        notifyForgotPassword(user, temporaryPassword);
+
+        String message = messageBuilder("User password", ResponseConstant.UPDATED.getValue());
         return new ApiDeleteResponseDto(message);
     }
 
@@ -203,5 +236,25 @@ public class UserServiceImpl extends BaseService implements UserService {
                 entity.getRole().getName(),
                 entity.getIsActive(),
                 entity.getOptLock());
+    }
+
+    private String generateTemporaryPassword() {
+        StringBuilder builder = new StringBuilder(TEMP_PASSWORD_LENGTH);
+        for (int i = 0; i < TEMP_PASSWORD_LENGTH; i++) {
+            int index = SECURE_RANDOM.nextInt(TEMP_PASSWORD_CHARS.length());
+            builder.append(TEMP_PASSWORD_CHARS.charAt(index));
+        }
+        return builder.toString();
+    }
+
+    private void notifyForgotPassword(User user, String temporaryPassword) {
+        EmailNotificationMessageDto message = EmailNotificationMessageDto.forgotPasswordMessage(
+                user.getEmail(),
+                temporaryPassword);
+
+        rabbitTemplate.convertAndSend(
+                RabbitConfig.PAYMENT_NOTIFICATION_EXCHANGE,
+                RabbitConfig.FORGOT_PASSWORD_NOTIFICATION_ROUTING_KEY,
+                message);
     }
 }

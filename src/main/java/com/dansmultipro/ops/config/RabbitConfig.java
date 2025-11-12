@@ -23,8 +23,8 @@ public class RabbitConfig {
     public static final String PAYMENT_CUSTOMER_NOTIFICATION_QUEUE = "payment.notification.queue.customer";
     public static final String PAYMENT_CUSTOMER_NOTIFICATION_ROUTING_KEY = "payment.notification.routing-key.customer";
 
-    public static final String PAYMENT_GATEWAY_REPLY_QUEUE = "payment.notification.queue.gateway.reply";
-    public static final String PAYMENT_GATEWAY_REPLY_ROUTING_KEY = "payment.notification.routing-key.gateway.reply";
+    public static final String FORGOT_PASSWORD_NOTIFICATION_QUEUE = "user.notification.queue.forgot-password";
+    public static final String FORGOT_PASSWORD_NOTIFICATION_ROUTING_KEY = "user.notification.routing-key.forgot-password";
 
     @Bean
     public DirectExchange paymentNotificationExchange() {
@@ -42,8 +42,8 @@ public class RabbitConfig {
     }
 
     @Bean
-    public Queue gatewayReplyQueue() {
-        return QueueBuilder.durable(PAYMENT_GATEWAY_REPLY_QUEUE).build();
+    public Queue forgotPasswordQueue() {
+        return QueueBuilder.durable(FORGOT_PASSWORD_NOTIFICATION_QUEUE).build();
     }
 
     @Bean
@@ -61,10 +61,10 @@ public class RabbitConfig {
     }
 
     @Bean
-    public Binding gatewayReplyBinding() {
-        return BindingBuilder.bind(gatewayReplyQueue())
+    public Binding forgotPasswordBinding() {
+        return BindingBuilder.bind(forgotPasswordQueue())
                 .to(paymentNotificationExchange())
-                .with(PAYMENT_GATEWAY_REPLY_ROUTING_KEY);
+                .with(FORGOT_PASSWORD_NOTIFICATION_ROUTING_KEY);
     }
 
     @Bean

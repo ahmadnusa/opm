@@ -9,8 +9,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import com.dansmultipro.ops.config.RabbitConfig;
 import com.dansmultipro.ops.dto.common.ApiDeleteResponseDto;
 import com.dansmultipro.ops.dto.notification.EmailNotificationMessageDto;
+import com.dansmultipro.ops.dto.notification.PaymentEmailPayload;
 import com.dansmultipro.ops.dto.payment.*;
-import com.dansmultipro.ops.util.EmailUtil;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -50,19 +50,17 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
     private final PaymentTypeRepo paymentTypeRepo;
     private final StatusTypeRepo statusTypeRepo;
     private final RabbitTemplate rabbitTemplate;
-    private final EmailUtil emailUtil;
 
     public PaymentServiceImpl(
             PaymentRepo paymentRepo,
             ProductTypeRepo productTypeRepo,
             PaymentTypeRepo paymentTypeRepo,
-            StatusTypeRepo statusTypeRepo, RabbitTemplate rabbitTemplate, EmailUtil emailUtil) {
+            StatusTypeRepo statusTypeRepo, RabbitTemplate rabbitTemplate) {
         this.paymentRepo = paymentRepo;
         this.productTypeRepo = productTypeRepo;
         this.paymentTypeRepo = paymentTypeRepo;
         this.statusTypeRepo = statusTypeRepo;
         this.rabbitTemplate = rabbitTemplate;
-        this.emailUtil = emailUtil;
     }
 
     @Override
@@ -184,10 +182,9 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
 
     private void notifyGatewayOnCreation(Payment payment) {
         resolveGatewayEmail().ifPresent(email -> {
-            EmailNotificationMessageDto message = new EmailNotificationMessageDto(
+            EmailNotificationMessageDto message = EmailNotificationMessageDto.paymentMessage(
                     email,
-                    emailUtil.buildGatewayCreationSubject(payment),
-                    emailUtil.buildGatewayCreationBody(payment));
+                    toPaymentPayload(payment));
             rabbitTemplate.convertAndSend(
                     RabbitConfig.PAYMENT_NOTIFICATION_EXCHANGE,
                     RabbitConfig.PAYMENT_GATEWAY_NOTIFICATION_ROUTING_KEY,
@@ -198,10 +195,9 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
     private void notifyCustomerOnStatusChange(Payment payment) {
         String email = payment.getCustomer().getEmail();
 
-        EmailNotificationMessageDto message = new EmailNotificationMessageDto(
+        EmailNotificationMessageDto message = EmailNotificationMessageDto.paymentMessage(
                 email,
-                emailUtil.buildCustomerStatusSubject(payment),
-                emailUtil.buildCustomerStatusBody(payment));
+                toPaymentPayload(payment));
 
         rabbitTemplate.convertAndSend(
                 RabbitConfig.PAYMENT_NOTIFICATION_EXCHANGE,
@@ -213,6 +209,10 @@ public class PaymentServiceImpl extends BaseService implements PaymentService {
         return userRepo.findFirstByRoleCode(RoleTypeConstant.GATEWAY.name())
                 .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
                 .map(User::getEmail);
+    }
+
+    private PaymentEmailPayload toPaymentPayload(Payment payment) {
+        return PaymentEmailPayload.from(payment);
     }
 
     private void ensureCustomerRole() {

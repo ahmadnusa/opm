@@ -7,6 +7,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 
 import com.dansmultipro.ops.dto.auth.RegisterRequestDto;
 import com.dansmultipro.ops.dto.common.ApiPostResponseDto;
+import com.dansmultipro.ops.dto.user.ForgotPasswordRequestDto;
 import com.dansmultipro.ops.dto.user.PasswordUpdateRequestDto;
 import com.dansmultipro.ops.dto.user.UserResponseDto;
 
@@ -15,6 +16,8 @@ public interface UserService extends UserDetailsService {
     ApiPostResponseDto register(RegisterRequestDto request);
 
     ApiDeleteResponseDto updatePassword(PasswordUpdateRequestDto request);
+
+    ApiDeleteResponseDto forgotPassword(ForgotPasswordRequestDto request);
 
     ApiDeleteResponseDto approveCustomer(List<String> customerIds);
 

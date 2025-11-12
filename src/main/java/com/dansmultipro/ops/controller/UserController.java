@@ -2,7 +2,6 @@ package com.dansmultipro.ops.controller;
 
 import java.util.List;
 
-import com.dansmultipro.ops.dto.common.ApiDeleteResponseDto;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,8 +15,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dansmultipro.ops.dto.auth.RegisterRequestDto;
+import com.dansmultipro.ops.dto.common.ApiDeleteResponseDto;
 import com.dansmultipro.ops.dto.common.ApiPostResponseDto;
-import com.dansmultipro.ops.dto.common.ApiPutResponseDto;
+import com.dansmultipro.ops.dto.user.ForgotPasswordRequestDto;
 import com.dansmultipro.ops.dto.user.PasswordUpdateRequestDto;
 import com.dansmultipro.ops.dto.user.UserResponseDto;
 import com.dansmultipro.ops.service.UserService;
@@ -42,8 +42,8 @@ public class UserController {
 
     @PreAuthorize("hasRole('SA')")
     @GetMapping
-    public ResponseEntity<List<UserResponseDto> >getAll(@RequestParam(required = false) Boolean isActive,
-                                        @RequestParam(required = false) String roleCode) {
+    public ResponseEntity<List<UserResponseDto>> getAll(@RequestParam(required = false) Boolean isActive,
+            @RequestParam(required = false) String roleCode) {
         List<UserResponseDto> res = userService.getAll(isActive, roleCode);
         return ResponseEntity.ok(res);
     }
@@ -58,8 +58,7 @@ public class UserController {
     @PreAuthorize("hasRole('SA')")
     @PutMapping("/approve")
     public ResponseEntity<ApiDeleteResponseDto> approve(
-            @RequestBody List<String> customerIds
-    ) {
+            @RequestBody List<String> customerIds) {
         ApiDeleteResponseDto response = userService.approveCustomer(customerIds);
         return ResponseEntity.ok(response);
     }
@@ -69,6 +68,13 @@ public class UserController {
     public ResponseEntity<ApiDeleteResponseDto> updatePassword(
             @Valid @RequestBody PasswordUpdateRequestDto request) {
         ApiDeleteResponseDto response = userService.updatePassword(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiDeleteResponseDto> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequestDto request) {
+        ApiDeleteResponseDto response = userService.forgotPassword(request);
         return ResponseEntity.ok(response);
     }
 }

@@ -1,11 +1,21 @@
 package com.dansmultipro.ops.integration;
 
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.mockito.Mockito;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.dansmultipro.ops.constant.RoleTypeConstant;
 import com.dansmultipro.ops.constant.StatusTypeConstant;
-import com.dansmultipro.ops.dto.notification.EmailNotificationMessageDto;
 import com.dansmultipro.ops.listener.EmailNotificationListener;
 import com.dansmultipro.ops.model.BaseEntity;
-import com.dansmultipro.ops.model.Payment;
 import com.dansmultipro.ops.model.User;
 import com.dansmultipro.ops.model.master.PaymentType;
 import com.dansmultipro.ops.model.master.ProductType;
@@ -19,17 +29,6 @@ import com.dansmultipro.ops.repository.StatusTypeRepo;
 import com.dansmultipro.ops.repository.UserRepo;
 import com.dansmultipro.ops.util.AuthUtil;
 import com.dansmultipro.ops.util.EmailUtil;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
-import org.mockito.Mockito;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -55,6 +54,9 @@ public abstract class AbstractServiceIntegrationTest {
 
     @Autowired
     protected PaymentRepo paymentRepo;
+
+    @Autowired
+    protected org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @MockitoBean
     protected AuthUtil authUtil;
@@ -87,7 +89,7 @@ public abstract class AbstractServiceIntegrationTest {
 
     @BeforeEach
     void setupBaseData() {
-        Mockito.reset(authUtil);
+        Mockito.reset(authUtil, rabbitTemplate, emailUtil, emailNotificationListener);
 
         paymentRepo.deleteAll();
         userRepo.deleteAll();
@@ -104,7 +106,8 @@ public abstract class AbstractServiceIntegrationTest {
         defaultProductType = createProductType("ELECTRICITY_TOKEN", "Electricity Token");
         defaultPaymentType = createPaymentType("QRIS", "QRIS");
 
-        systemUser = createUser("System", "system@ops.test", systemRole, true, "password");
+        systemUser = createUser("System", "system@ops.test", systemRole, true,
+                "password");
         customerUser = createUser("Customer User", "customer@ops.local", customerRole, true,
                 "password");
         gatewayUser = createUser("Gateway User", "gateway@ops.local", gatewayRole, true,
@@ -152,7 +155,7 @@ public abstract class AbstractServiceIntegrationTest {
         User user = new User();
         user.setFullName(fullName);
         user.setEmail(email);
-        user.setPassword(rawPassword);
+        user.setPassword(passwordEncoder.encode(rawPassword));
         user.setRole(role);
         initializeBase(user, isActive, DEFAULT_ACTOR);
         return userRepo.saveAndFlush(user);
